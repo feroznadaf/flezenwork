@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# Large portable binaries (auto-downloaded via setup script)
+tesseract-portable/
+platform-tools/
+dist/
+build/
+*.exe
+*.dll
+
+# Databases & local user files
+database/
+*.db
+*.db-journal
+*.db-wal
+screenshots/
+*.png
+!public/icons/*.png
+failed/
+exports/
+*.xlsx
+logs/
+*.log
+
+# Operating System
+.DS_Store
+Thumbs.db

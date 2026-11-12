@@ -1,0 +1,19 @@
+{
+  "name": "flezen-bulk-code-extractor",
+  "version": "1.0.0",
+  "description": "Production-quality bulk code extractor for Flezen links with on-device OCR, Android app integration, and Excel reporting",
+  "main": "public/index.html",
+  "scripts": {
+    "build": "echo 'Build successful'",
+    "start": "npx serve public"
+  },
+  "keywords": [
+    "flezen",
+    "ocr",
+    "android",
+    "pwa",
+    "playwright"
+  ],
+  "author": "Feroz Nadaf",
+  "license": "MIT"
+}

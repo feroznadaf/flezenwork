@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Flezen Bulk Code Extractor</title>
+  
+  <!-- PWA Meta -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#6366F1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="icon" type="image/png" href="/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+
+  <!-- Tailwind CSS & Remix Icon -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            bgRoot: '#0B0D14',
+            surface: '#121524',
+            surfaceCard: '#181C2E',
+            surfaceHover: '#21263D',
+            borderCol: '#272D45',
+            primary: '#6366F1',
+            primaryHover: '#4F46E5',
+            accent: '#8B5CF6'
+          }
+        }
+      }
+    }
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet" />
+
+  <!-- Tesseract.js (Client-side OCR) & SheetJS (Excel Export) -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0B0D14; }
+    ::-webkit-scrollbar-thumb { background: #272D45; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #6366F1; }
+    body { background-color: #0B0D14; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  </style>
+</head>
+<body class="text-slate-100 min-h-screen flex flex-col antialiased select-none">
+
+  <!-- Header -->
+  <header class="bg-surface border-b border-borderCol px-4 py-3 sticky top-0 z-30 shadow-md">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white shadow-indigo-500/20 shadow-lg">
+          <i class="ri-flashlight-line text-lg"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-bold tracking-tight text-white text-base sm:text-lg">FLEZEN</span>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded bg-primary/20 text-indigo-400 border border-primary/30">MOBILE EXTRACTOR</span>
+          </div>
+          <p class="text-[11px] text-slate-400 hidden sm:block">Automated Code Extraction &amp; Excel Reporting</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button id="btn-install" class="hidden items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition shadow-lg shadow-indigo-600/30">
+          <i class="ri-download-2-line"></i> Install App
+        </button>
+        <button onclick="exportToExcel()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition shadow-lg shadow-emerald-600/20">
+          <i class="ri-file-excel-2-line"></i> <span class="hidden sm:inline">Export</span> Excel
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 space-y-5">
+
+    <!-- Stat Metrics Cards -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div class="bg-surfaceCard border border-borderCol rounded-xl p-3 sm:p-4">
+        <div class="text-xs text-slate-400 font-medium flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-blue-500"></span> Total Links
+        </div>
+        <div id="stat-total" class="text-xl sm:text-2xl font-bold text-white mt-1">1,000</div>
+      </div>
+
+      <div class="bg-surfaceCard border border-borderCol rounded-xl p-3 sm:p-4">
+        <div class="text-xs text-slate-400 font-medium flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-indigo-500"></span> Processed
+        </div>
+        <div id="stat-processed" class="text-xl sm:text-2xl font-bold text-indigo-400 mt-1">0</div>
+      </div>
+
+      <div class="bg-surfaceCard border border-borderCol rounded-xl p-3 sm:p-4">
+        <div class="text-xs text-slate-400 font-medium flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Success
+        </div>
+        <div id="stat-success" class="text-xl sm:text-2xl font-bold text-emerald-400 mt-1">0</div>
+      </div>
+
+      <div class="bg-surfaceCard border border-borderCol rounded-xl p-3 sm:p-4">
+        <div class="text-xs text-slate-400 font-medium flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-amber-500"></span> Needs Review
+        </div>
+        <div id="stat-review" class="text-xl sm:text-2xl font-bold text-amber-400 mt-1">0</div>
+      </div>
+
+      <div class="bg-surfaceCard border border-borderCol rounded-xl p-3 sm:p-4">
+        <div class="text-xs text-slate-400 font-medium flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-rose-500"></span> Failed
+        </div>
+        <div id="stat-failed" class="text-xl sm:text-2xl font-bold text-rose-400 mt-1">0</div>
+      </div>
+
+      <div class="bg-surfaceCard border border-borderCol rounded-xl p-3 sm:p-4">
+        <div class="text-xs text-slate-400 font-medium flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-pink-500"></span> Duplicates
+        </div>
+        <div id="stat-duplicates" class="text-xl sm:text-2xl font-bold text-pink-400 mt-1">0</div>
+      </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="bg-surfaceCard border border-borderCol rounded-xl p-3 sm:p-4">
+      <div class="flex justify-between items-center text-xs mb-2">
+        <span id="progress-text" class="text-slate-300 font-medium">Batch Progress: 0 / 1,000 (0%)</span>
+        <span id="eta-text" class="text-slate-400">Ready</span>
+      </div>
+      <div class="w-full bg-surface rounded-full h-2.5 overflow-hidden border border-borderCol">
+        <div id="progress-fill" class="bg-indigo-500 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+      </div>
+    </div>
+
+    <!-- Filter & Search Controls -->
+    <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+      <!-- Filter Tabs -->
+      <div class="flex items-center gap-1 bg-surface border border-borderCol p-1 rounded-xl overflow-x-auto text-xs">
+        <button onclick="setFilter('ALL')" id="filter-ALL" class="filter-tab px-3 py-1.5 rounded-lg bg-primary text-white font-medium transition whitespace-nowrap">All</button>
+        <button onclick="setFilter('PENDING')" id="filter-PENDING" class="filter-tab px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition whitespace-nowrap">Pending</button>
+        <button onclick="setFilter('SUCCESS')" id="filter-SUCCESS" class="filter-tab px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition whitespace-nowrap">Success</button>
+        <button onclick="setFilter('REVIEW')" id="filter-REVIEW" class="filter-tab px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition whitespace-nowrap">Review</button>
+        <button onclick="setFilter('FAILED')" id="filter-FAILED" class="filter-tab px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition whitespace-nowrap">Failed</button>
+        <button onclick="setFilter('DUPLICATES')" id="filter-DUPLICATES" class="filter-tab px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition whitespace-nowrap">Duplicates</button>
+      </div>
+
+      <!-- Search Input -->
+      <div class="relative">
+        <i class="ri-search-line absolute left-3 top-2.5 text-slate-500 text-sm"></i>
+        <input type="text" id="search-input" oninput="onSearch()" placeholder="Search code, serial, or URL..." class="w-full sm:w-64 bg-surface border border-borderCol text-slate-200 text-xs rounded-xl pl-9 pr-3 py-2 focus:outline-none focus:border-primary transition" />
+      </div>
+    </div>
+
+    <!-- Active Scanning Modal / OCR Banner -->
+    <div id="ocr-loading" class="hidden bg-indigo-950/60 border border-indigo-500/30 rounded-xl p-4 flex items-center gap-3">
+      <div class="animate-spin text-primary text-xl"><i class="ri-loader-4-line"></i></div>
+      <div class="text-xs">
+        <p class="font-semibold text-white">Running On-Device OCR Engine...</p>
+        <p id="ocr-status-text" class="text-slate-400">Analyzing image characters...</p>
+      </div>
+    </div>
+
+    <!-- Links List -->
+    <div id="links-container" class="space-y-2.5">
+      <!-- Link Items Rendered via JS -->
+      <div class="text-center py-10 text-slate-500 text-sm">Loading 1,000 Flezen test links...</div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="flex items-center justify-between text-xs text-slate-400 pt-2 pb-6">
+      <button onclick="prevPage()" id="btn-prev" class="px-3 py-2 rounded-lg bg-surface border border-borderCol hover:border-slate-500 disabled:opacity-40 disabled:pointer-events-none transition">
+        ← Previous
+      </button>
+      <span id="page-indicator">Page 1 of 50</span>
+      <button onclick="nextPage()" id="btn-next" class="px-3 py-2 rounded-lg bg-surface border border-borderCol hover:border-slate-500 disabled:opacity-40 disabled:pointer-events-none transition">
+        Next →
+      </button>
+    </div>
+
+  </main>
+
+  <!-- Hidden File Input for Mobile Screenshot OCR -->
+  <input type="file" id="image-file-input" accept="image/*" class="hidden" onchange="handleImagePicked(event)" />
+
+  <script>
+    // State
+    let allLinks = [];
+    let currentFilter = 'ALL';
+    let searchQuery = '';
+    let currentPage = 1;
+    const pageSize = 20;
+    let targetLinkForOCR = null;
+
+    // Register Service Worker for PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW register fail:', err));
+      });
+    }
+
+    // PWA Install Prompt
+    let deferredPrompt;
+    const installBtn = document.getElementById('btn-install');
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.classList.remove('hidden');
+      installBtn.classList.add('flex');
+    });
+
+    installBtn.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        installBtn.classList.add('hidden');
+      }
+      deferredPrompt = null;
+    });
+
+    // Load Links from JSON & LocalStorage
+    async function init() {
+      try {
+        const res = await fetch('/links.json');
+        const data = await res.json();
+        
+        // Load stored progress from localStorage
+        const stored = JSON.parse(localStorage.getItem('flezen_codes') || '{}');
+
+        allLinks = data.map(item => {
+          const s = stored[item.serial] || {};
+          return {
+            serial: item.serial,
+            url: item.url,
+            code: s.code || '',
+            confidence: s.confidence || 0,
+            status: s.status || (s.code ? 'SUCCESS' : 'PENDING'),
+            note: s.note || ''
+          };
+        });
+
+        updateMetrics();
+        renderLinks();
+      } catch (e) {
+        console.error('Failed to load links:', e);
+        document.getElementById('links-container').innerHTML = 
+          `<div class="p-6 text-center text-rose-400 bg-rose-950/20 rounded-xl border border-rose-900/40">Error loading links.json. Please check file path.</div>`;
+      }
+    }
+
+    function saveLinkRecord(serial, code, status, confidence = 90, note = '') {
+      code = code.trim().toUpperCase();
+      const link = allLinks.find(l => l.serial === serial);
+      if (link) {
+        link.code = code;
+        link.status = status;
+        link.confidence = confidence;
+        link.note = note;
+      }
+
+      // Persist in localStorage
+      const stored = JSON.parse(localStorage.getItem('flezen_codes') || '{}');
+      stored[serial] = { code, status, confidence, note };
+      localStorage.setItem('flezen_codes', JSON.stringify(stored));
+
+      updateMetrics();
+      renderLinks();
+    }
+
+    function updateMetrics() {
+      const total = allLinks.length;
+      const processed = allLinks.filter(l => l.status !== 'PENDING').length;
+      const success = allLinks.filter(l => l.status === 'SUCCESS').length;
+      const review = allLinks.filter(l => l.status === 'NEEDS_REVIEW').length;
+      const failed = allLinks.filter(l => l.status === 'FAILED').length;
+
+      // Duplicates
+      const codeCounts = {};
+      allLinks.forEach(l => {
+        if (l.code) codeCounts[l.code] = (codeCounts[l.code] || 0) + 1;
+      });
+      const duplicates = allLinks.filter(l => l.code && codeCounts[l.code] > 1).length;
+
+      document.getElementById('stat-total').innerText = total.toLocaleString();
+      document.getElementById('stat-processed').innerText = processed.toLocaleString();
+      document.getElementById('stat-success').innerText = success.toLocaleString();
+      document.getElementById('stat-review').innerText = review.toLocaleString();
+      document.getElementById('stat-failed').innerText = failed.toLocaleString();
+      document.getElementById('stat-duplicates').innerText = duplicates.toLocaleString();
+
+      const pct = total > 0 ? Math.round((processed / total) * 100) : 0;
+      document.getElementById('progress-text').innerText = `Batch Progress: ${processed} / ${total} (${pct}%)`;
+      document.getElementById('progress-fill').style.width = `${pct}%`;
+      document.getElementById('eta-text').innerText = processed >= total ? 'Complete ✓' : `${total - processed} remaining`;
+    }
+
+    function getFilteredLinks() {
+      const codeCounts = {};
+      allLinks.forEach(l => {
+        if (l.code) codeCounts[l.code] = (codeCounts[l.code] || 0) + 1;
+      });
+
+      return allLinks.filter(l => {
+        // Status filter
+        if (currentFilter === 'PENDING' && l.status !== 'PENDING') return false;
+        if (currentFilter === 'SUCCESS' && l.status !== 'SUCCESS') return false;
+        if (currentFilter === 'REVIEW' && l.status !== 'NEEDS_REVIEW') return false;
+        if (currentFilter === 'FAILED' && l.status !== 'FAILED') return false;
+        if (currentFilter === 'DUPLICATES' && (!l.code || codeCounts[l.code] <= 1)) return false;
+
+        // Search query
+        if (searchQuery) {
+          const q = searchQuery.toLowerCase();
+          const matchSerial = `#${String(l.serial).padStart(4, '0')}`.toLowerCase().includes(q) || String(l.serial).includes(q);
+          const matchUrl = l.url.toLowerCase().includes(q);
+          const matchCode = (l.code || '').toLowerCase().includes(q);
+          return matchSerial || matchUrl || matchCode;
+        }
+
+        return true;
+      });
+    }
+
+    function renderLinks() {
+      const container = document.getElementById('links-container');
+      const filtered = getFilteredLinks();
+      const totalFiltered = filtered.length;
+      const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
+
+      if (currentPage > totalPages) currentPage = totalPages;
+      const start = (currentPage - 1) * pageSize;
+      const paged = filtered.slice(start, start + pageSize);
+
+      document.getElementById('page-indicator').innerText = `Page ${currentPage} of ${totalPages} (${totalFiltered} items)`;
+      document.getElementById('btn-prev').disabled = currentPage <= 1;
+      document.getElementById('btn-next').disabled = currentPage >= totalPages;
+
+      if (paged.length === 0) {
+        container.innerHTML = `<div class="p-8 text-center text-slate-500 bg-surfaceCard rounded-xl border border-borderCol">No links match current filter or search.</div>`;
+        return;
+      }
+
+      container.innerHTML = paged.map(l => {
+        const serialStr = `#${String(l.serial).padStart(4, '0')}`;
+        const hasCode = !!l.code;
+        
+        let badgeColor = 'bg-slate-800 text-slate-400 border-slate-700';
+        if (l.status === 'SUCCESS') badgeColor = 'bg-emerald-950/60 text-emerald-400 border-emerald-800/40';
+        else if (l.status === 'NEEDS_REVIEW') badgeColor = 'bg-amber-950/60 text-amber-400 border-amber-800/40';
+        else if (l.status === 'FAILED') badgeColor = 'bg-rose-950/60 text-rose-400 border-rose-800/40';
+
+        // Deep link intent for Android Flezen app
+        const appIntentUrl = `intent://${l.url.replace(/^https?:\/\//, '')}#Intent;scheme=flezen;package=com.devlooper.flezen;end`;
+
+        return `
+          <div class="bg-surfaceCard border border-borderCol hover:border-slate-600 rounded-xl p-3.5 sm:p-4 transition flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-mono text-xs font-bold text-indigo-400 bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-800/30">${serialStr}</span>
+                <span class="text-[10px] font-semibold px-2 py-0.5 rounded border ${badgeColor}">${l.status}</span>
+                ${l.confidence > 0 ? `<span class="text-[10px] text-slate-400 font-mono">${Math.round(l.confidence)}% conf</span>` : ''}
+              </div>
+              <div class="text-xs text-slate-400 truncate select-all" title="${l.url}">
+                ${l.url}
+              </div>
+            </div>
+
+            <!-- Action Controls -->
+            <div class="flex flex-wrap sm:flex-nowrap items-center gap-2">
+              <!-- Android App Deep Link Button -->
+              <a href="${appIntentUrl}" class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-surface border border-indigo-500/30 hover:border-indigo-500 text-indigo-300 text-xs font-medium transition active:scale-95">
+                <i class="ri-android-line text-sm"></i>
+                <span>Open in App</span>
+              </a>
+
+              <!-- Mobile Camera / Screenshot OCR Trigger -->
+              <button onclick="triggerOCRFor(${l.serial})" class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 text-xs font-medium transition active:scale-95">
+                <i class="ri-camera-lens-line text-sm"></i>
+                <span>Scan Image</span>
+              </button>
+
+              <!-- Code Input & Save -->
+              <div class="flex items-center gap-1 w-full sm:w-auto">
+                <input 
+                  type="text" 
+                  id="code-input-${l.serial}"
+                  value="${l.code || ''}" 
+                  placeholder="XXXX-XXXX-XXXX"
+                  class="w-36 font-mono text-xs uppercase px-2.5 py-2 rounded-lg bg-bgRoot border border-borderCol text-white focus:outline-none focus:border-primary transition"
+                  oninput="formatCodeInput(this)"
+                />
+                <button onclick="onSaveManualCode(${l.serial})" class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition active:scale-95">
+                  <i class="ri-check-line"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function formatCodeInput(input) {
+      let val = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (val.length > 12) val = val.substring(0, 12);
+      let formatted = '';
+      for (let i = 0; i < val.length; i++) {
+        if (i === 4 || i === 8) formatted += '-';
+        formatted += val[i];
+      }
+      input.value = formatted;
+    }
+
+    function onSaveManualCode(serial) {
+      const input = document.getElementById(`code-input-${serial}`);
+      const code = input.value.trim().toUpperCase();
+      const pattern = /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
+      const isValid = pattern.test(code);
+      const status = isValid ? 'SUCCESS' : (code ? 'NEEDS_REVIEW' : 'PENDING');
+      saveLinkRecord(serial, code, status, isValid ? 100 : 50, isValid ? 'Manual entry' : 'Invalid format');
+    }
+
+    // Client-Side OCR Execution via Tesseract.js
+    function triggerOCRFor(serial) {
+      targetLinkForOCR = serial;
+      document.getElementById('image-file-input').click();
+    }
+
+    async function handleImagePicked(event) {
+      const file = event.target.files[0];
+      if (!file || !targetLinkForOCR) return;
+
+      const loadingBanner = document.getElementById('ocr-loading');
+      const statusText = document.getElementById('ocr-status-text');
+      loadingBanner.classList.remove('hidden');
+
+      try {
+        statusText.innerText = 'Initializing Tesseract.js OCR engine...';
+        
+        const worker = await Tesseract.createWorker('eng');
+        await worker.setParameters({
+          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-'
+        });
+
+        statusText.innerText = 'Processing image & extracting code...';
+        const ret = await worker.recognize(file);
+        await worker.terminate();
+
+        const rawText = ret.data.text.trim().toUpperCase();
+        console.log('OCR Output:', rawText);
+
+        // Extract regex XXXX-XXXX-XXXX
+        const match = rawText.match(/[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}/);
+        let extractedCode = '';
+        let status = 'NEEDS_REVIEW';
+        let conf = ret.data.confidence || 0;
+
+        if (match) {
+          extractedCode = match[0];
+          status = conf >= 70 ? 'SUCCESS' : 'NEEDS_REVIEW';
+        } else {
+          // Check 12 consecutive characters
+          const clean = rawText.replace(/[^A-Z0-9]/g, '');
+          if (clean.length === 12) {
+            extractedCode = `${clean.substring(0,4)}-${clean.substring(4,8)}-${clean.substring(8,12)}`;
+            status = 'NEEDS_REVIEW';
+          } else {
+            extractedCode = rawText.substring(0, 14);
+            status = 'FAILED';
+          }
+        }
+
+        saveLinkRecord(targetLinkForOCR, extractedCode, status, conf, 'Tesseract.js scan');
+      } catch (err) {
+        console.error('OCR Error:', err);
+        alert('OCR Error: ' + err.message);
+      } finally {
+        loadingBanner.classList.add('hidden');
+        event.target.value = '';
+        targetLinkForOCR = null;
+      }
+    }
+
+    // Filter & Search
+    function setFilter(filter) {
+      currentFilter = filter;
+      currentPage = 1;
+      document.querySelectorAll('.filter-tab').forEach(b => {
+        b.classList.remove('bg-primary', 'text-white');
+        b.classList.add('text-slate-400');
+      });
+      const activeBtn = document.getElementById(`filter-${filter}`);
+      if (activeBtn) {
+        activeBtn.classList.add('bg-primary', 'text-white');
+        activeBtn.classList.remove('text-slate-400');
+      }
+      renderLinks();
+    }
+
+    function onSearch() {
+      searchQuery = document.getElementById('search-input').value.trim();
+      currentPage = 1;
+      renderLinks();
+    }
+
+    function prevPage() {
+      if (currentPage > 1) {
+        currentPage--;
+        renderLinks();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+
+    function nextPage() {
+      currentPage++;
+      renderLinks();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Multi-Tab Excel Export using SheetJS
+    function exportToExcel() {
+      const codeCounts = {};
+      allLinks.forEach(l => {
+        if (l.code) codeCounts[l.code] = (codeCounts[l.code] || 0) + 1;
+      });
+
+      const formatRows = (links) => links.map(l => ({
+        "Serial #": l.serial,
+        "Flezen URL": l.url,
+        "Extracted Code": l.code || "—",
+        "Confidence (%)": l.confidence > 0 ? `${Math.round(l.confidence)}%` : "—",
+        "Processing Status": l.status,
+        "Notes": l.note || ""
+      }));
+
+      const wb = XLSX.utils.book_new();
+
+      // Sheets
+      const allRows = formatRows(allLinks);
+      const successRows = formatRows(allLinks.filter(l => l.status === 'SUCCESS'));
+      const failedRows = formatRows(allLinks.filter(l => l.status === 'FAILED'));
+      const reviewRows = formatRows(allLinks.filter(l => l.status === 'NEEDS_REVIEW'));
+      const dupRows = formatRows(allLinks.filter(l => l.code && codeCounts[l.code] > 1));
+
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(allRows), "All Results");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(successRows), "Successful");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(failedRows), "Failed");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(reviewRows), "Needs Review");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dupRows), "Duplicate Codes");
+
+      XLSX.writeFile(wb, "Flezen_Extracted_Codes.xlsx");
+    }
+
+    // Start
+    init();
+  </script>
+</body>
+</html>
